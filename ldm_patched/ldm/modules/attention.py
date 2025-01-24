@@ -819,7 +819,6 @@ class SpatialTransformer(nn.Module):
             x = self.proj_out(x)
         return x + x_in
 
-
 class SpatialVideoTransformer(SpatialTransformer):
     def __init__(
         self,

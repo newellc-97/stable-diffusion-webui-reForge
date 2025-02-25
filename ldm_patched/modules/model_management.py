@@ -247,6 +247,22 @@ if is_intel_xpu():
 if args.vae_in_cpu:
     VAE_DTYPES = [torch.float32]
 
+VAE_ALWAYS_TILED = False
+
+# include VAE tile size parameters
+
+
+VAE_ENCODE_TILE_SIZE_X = 512
+
+
+VAE_ENCODE_TILE_SIZE_Y = 512
+
+
+VAE_DECODE_TILE_SIZE_X = 64
+
+
+VAE_DECODE_TILE_SIZE_Y = 64
+
 def set_fp16_accumulation_if_available():
     if args.allow_fp16_accumulation:
         try:

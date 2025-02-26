@@ -761,8 +761,8 @@ def create_ui():
             # the code below is meant to update the resolution label after the image in the image selection UI has changed.
             # as it is now the event keeps firing continuously for inpaint edits, which ruins the page with constant requests.
             # I assume this must be a gradio bug and for now we'll just do it for non-inpaint inputs.
-            for component in [init_img, sketch]:
-                component.change(fn=lambda: None, _js="updateImg2imgResizeToTextAfterChangingImage", inputs=[], outputs=[], show_progress=False)
+            # for component in [init_img, sketch]:
+            #     component.change(fn=lambda: None, _js="updateImg2imgResizeToTextAfterChangingImage", inputs=[], outputs=[], show_progress=False)
 
             def select_img2img_tab(tab):
                 return gr.update(visible=tab in [2, 3, 4]), gr.update(visible=tab == 3),

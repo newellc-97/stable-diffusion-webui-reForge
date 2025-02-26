@@ -709,7 +709,7 @@ elif shared.opts.model_management_type == 'New':
         checkpoint_info = checkpoint_info or select_checkpoint()
         timer = Timer()
 
-        if model_management.PIN_SHARED_MEMORY:
+        if model_management.DISABLE_SMART_MEMORY:
             # Pinned shared memory case
             for loaded_model in model_data.loaded_sd_models:
                 if loaded_model.filename == checkpoint_info.filename:
@@ -754,6 +754,16 @@ elif shared.opts.model_management_type == 'New':
         model_data.set_sd_model(sd_model)
         model_data.was_loaded_at_least_once = True
 
+        # Ensure the new model is marked as currently used
+        sd_model.currently_used = True
+
+        # Free memory if necessary
+        model_management.free_memory(
+            model_management.get_total_memory(model_management.get_torch_device()),
+            model_management.get_torch_device(),
+            keep_loaded=[sd_model] + model_data.loaded_sd_models[1:]  # Keep the newly loaded model and others
+        )
+
         shared.opts.data["sd_checkpoint_hash"] = checkpoint_info.sha256
 
         sd_vae.delete_base_vae()
@@ -790,9 +800,17 @@ def unload_first_loaded_model():
     elif hasattr(first_loaded_model, 'to'):
         first_loaded_model.to('cpu')
     
-    model_management.free_memory(model_management.get_total_memory(model_management.get_torch_device()), 
-                                 model_management.get_torch_device(), 
-                                 keep_loaded=model_data.loaded_sd_models)
+    unloaded_models = model_management.free_memory(
+        model_management.get_total_memory(model_management.get_torch_device()), 
+        model_management.get_torch_device(), 
+        keep_loaded=model_data.loaded_sd_models
+    )
+    
+    # Remove any additional unloaded models from loaded_sd_models
+    for unloaded_model in unloaded_models:
+        if unloaded_model in model_data.loaded_sd_models:
+            model_data.loaded_sd_models.remove(unloaded_model)
+    
     model_management.soft_empty_cache()
     gc.collect()
 

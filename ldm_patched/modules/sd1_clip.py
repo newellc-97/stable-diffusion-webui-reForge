@@ -15,6 +15,8 @@ from . import model_management
 import ldm_patched.modules.clip_model
 import json
 from transformers import CLIPTextModel, CLIPTextConfig, modeling_utils
+import logging
+import numbers
 
 
 # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
@@ -72,33 +74,31 @@ class ClipTokenWeightEncoder:
         return torch.cat(output, dim=-2).to(model_management.intermediate_device()), first_pooled
 
 class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
-    """Uses the CLIP transformer encoder for text (from huggingface)"""
     LAYERS = [
         "last",
         "pooled",
         "hidden"
     ]
-    def __init__(self, version="openai/clip-vit-large-patch14", device="cpu", max_length=77,
+    def __init__(self, device="cpu", max_length=77,
                  freeze=True, layer="last", layer_idx=None, textmodel_json_config=None, dtype=None, model_class=ldm_patched.modules.clip_model.CLIPTextModel,
-                 special_tokens={"start": 49406, "end": 49407, "pad": 49407}, layer_norm_hidden_state=True):  # clip-vit-base-patch32
+                 special_tokens={"start": 49406, "end": 49407, "pad": 49407}, layer_norm_hidden_state=True, enable_attention_masks=False,
+                 zero_out_masked=False, return_projected_pooled=True, return_attention_masks=False, model_options={}):
         super().__init__()
         assert layer in self.LAYERS
-
         if textmodel_json_config is None:
             textmodel_json_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sd1_clip_config.json")
-
         config = CLIPTextConfig.from_json_file(textmodel_json_config)
         self.num_layers = config.num_hidden_layers
 
-        with ldm_patched.modules.ops.use_patched_ops(ldm_patched.modules.ops.manual_cast):
+        # Add the operations logic from model_options
+        self.operations = model_options.get("custom_operations", ldm_patched.modules.ops.manual_cast)
+
+        with ldm_patched.modules.ops.use_patched_ops(self.operations):
             with modeling_utils.no_init_weights():
                 self.transformer = CLIPTextModel(config)
-
         if dtype is not None:
             self.transformer.to(dtype)
-
         self.transformer.text_model.embeddings.to(torch.float32)
-
         self.max_length = max_length
         if freeze:
             self.freeze()
@@ -107,10 +107,11 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         self.special_tokens = special_tokens
         self.text_projection = torch.nn.Parameter(torch.eye(self.transformer.get_input_embeddings().weight.shape[1]))
         self.logit_scale = torch.nn.Parameter(torch.tensor(4.6055))
-        self.enable_attention_masks = False
-
+        self.enable_attention_masks = enable_attention_masks
         self.layer_norm_hidden_state = layer_norm_hidden_state
-        self.return_projected_pooled = True
+        self.zero_out_masked = zero_out_masked
+        self.return_projected_pooled = return_projected_pooled
+        self.return_attention_masks = return_attention_masks
         if layer == "hidden":
             assert layer_idx is not None
             assert abs(layer_idx) < self.num_layers
@@ -119,7 +120,6 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
 
     def freeze(self):
         self.transformer = self.transformer.eval()
-        #self.train = disabled_train
         for param in self.parameters():
             param.requires_grad = False
 
@@ -137,19 +137,46 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         self.layer_idx = self.options_default[1]
         self.return_projected_pooled = self.options_default[2]
 
+    def forward(self, tokens):
+        attention_mask = None
+        if self.enable_attention_masks:
+            attention_mask = tokens.not_equal(self.special_tokens["pad"]).long()
+
+        outputs = self.transformer(input_ids=tokens, attention_mask=attention_mask, output_hidden_states=self.layer == "hidden")
+
+        if self.layer == "last":
+            z = outputs.last_hidden_state
+        elif self.layer == "pooled":
+            z = outputs.pooler_output[:, None, :]
+        else:
+            z = outputs.hidden_states[self.layer_idx]
+
+        if self.layer_norm_hidden_state:
+            z = self.transformer.text_model.final_layer_norm(z)
+
+        if self.zero_out_masked and attention_mask is not None:
+            z = z * attention_mask.unsqueeze(-1)
+
+        pooled = z[:, 0]
+        if self.return_projected_pooled:
+            pooled = pooled @ self.text_projection
+
+        if self.return_attention_masks:
+            return z, pooled, attention_mask
+        else:
+            return z, pooled
+
     # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
     
     def set_up_textual_embeddings(self, tokens, current_embeds):
         out_tokens = []
-        next_new_token = token_dict_size = current_embeds.weight.shape[0] - 1
+        next_new_token = token_dict_size = current_embeds.weight.shape[0]
         embedding_weights = []
 
         for x in tokens:
             tokens_temp = []
             for y in x:
-                if isinstance(y, int):
-                    if y == token_dict_size: #EOS token
-                        y = -1
+                if isinstance(y, numbers.Integral):
                     tokens_temp += [y]
                 else:
                     if y.shape[0] == current_embeds.weight.shape[1]:
@@ -165,11 +192,10 @@ class SDClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         n = token_dict_size
         if len(embedding_weights) > 0:
             new_embedding = torch.nn.Embedding(next_new_token + 1, current_embeds.weight.shape[1], device=current_embeds.weight.device, dtype=current_embeds.weight.dtype)
-            new_embedding.weight[:token_dict_size] = current_embeds.weight[:-1]
+            new_embedding.weight[:token_dict_size] = current_embeds.weight
             for x in embedding_weights:
                 new_embedding.weight[n] = x
                 n += 1
-            new_embedding.weight[n] = current_embeds.weight[-1] #EOS embedding
             self.transformer.set_input_embeddings(new_embedding)
 
         processed_tokens = []
@@ -322,6 +348,16 @@ def expand_directory_list(directories):
             dirs.add(root)
     return list(dirs)
 
+def bundled_embed(embed, prefix, suffix): #bundled embedding in lora format
+    i = 0
+    out_list = []
+    for k in embed:
+        if k.startswith(prefix) and k.endswith(suffix):
+            out_list.append(embed[k])
+    if len(out_list) == 0:
+        return None
+
+    return torch.cat(out_list, dim=0)
 
 # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
 
@@ -371,10 +407,8 @@ def load_embed(embedding_name, embedding_directory, embedding_size, embed_key=No
                     embed_out = safe_load_embed_zip(embed_path)
             else:
                 embed = torch.load(embed_path, map_location="cpu")
-    except Exception:
-        print(traceback.format_exc())
-        print()
-        print("error loading embedding, skipping loading:", embedding_name)
+    except Exception as e:
+        logging.warning("{}\n\nerror loading embedding, skipping loading: {}".format(traceback.format_exc(), embedding_name))
         return None
 
     if embed_out is None:
@@ -393,16 +427,21 @@ def load_embed(embedding_name, embedding_directory, embedding_size, embed_key=No
         elif embed_key is not None and embed_key in embed:
             embed_out = embed[embed_key]
         else:
-            values = embed.values()
-            embed_out = next(iter(values))
+            embed_out = bundled_embed(embed, 'bundle_emb.', '.string_to_param.*')
+            if embed_out is None:
+                embed_out = bundled_embed(embed, 'bundle_emb.', '.{}'.format(embed_key))
+            if embed_out is None:
+                values = embed.values()
+                embed_out = next(iter(values))
     return embed_out
 
 class SDTokenizer:
-    def __init__(self, tokenizer_path=None, max_length=77, pad_with_end=True, embedding_directory=None, embedding_size=768, embedding_key='clip_l', tokenizer_class=CLIPTokenizer, has_start_token=True, pad_to_max_length=True):
+    def __init__(self, tokenizer_path=None, max_length=77, pad_with_end=True, embedding_directory=None, embedding_size=768, embedding_key='clip_l', tokenizer_class=CLIPTokenizer, has_start_token=True, pad_to_max_length=True, min_length=None, pad_token=None, tokenizer_data={}):
         if tokenizer_path is None:
             tokenizer_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "sd1_tokenizer")
         self.tokenizer = tokenizer_class.from_pretrained(tokenizer_path)
         self.max_length = max_length
+        self.min_length = min_length
 
         empty = self.tokenizer('')["input_ids"]
         if has_start_token:
@@ -413,6 +452,14 @@ class SDTokenizer:
             self.tokens_start = 0
             self.start_token = None
             self.end_token = empty[0]
+
+        if pad_token is not None:
+            self.pad_token = pad_token
+        elif pad_with_end:
+            self.pad_token = self.end_token
+        else:
+            self.pad_token = 0
+
         self.pad_with_end = pad_with_end
         self.pad_to_max_length = pad_to_max_length
 
@@ -448,10 +495,6 @@ class SDTokenizer:
         Word id values are unique per word and embedding, where the id 0 is reserved for non word tokens.
         Returned list has the dimensions NxM where M is the input size of CLIP
         '''
-        if self.pad_with_end:
-            pad_token = self.end_token
-        else:
-            pad_token = 0
 
         text = escape_important(text)
         parsed_weights = token_weights(text, 1.0)
@@ -467,7 +510,7 @@ class SDTokenizer:
                     embedding_name = word[len(self.embedding_identifier):].strip('\n')
                     embed, leftover = self._try_get_embedding(embedding_name)
                     if embed is None:
-                        print(f"warning, embedding:{embedding_name} does not exist, ignoring")
+                        logging.warning(f"warning, embedding:{embedding_name} does not exist, ignoring")
                     else:
                         if len(embed.shape) == 1:
                             tokens.append([(embed, weight)])
@@ -503,7 +546,7 @@ class SDTokenizer:
                     else:
                         batch.append((self.end_token, 1.0, 0))
                         if self.pad_to_max_length:
-                            batch.extend([(pad_token, 1.0, 0)] * (remaining_length))
+                            batch.extend([(self.pad_token, 1.0, 0)] * (remaining_length))
                     #start new batch
                     batch = []
                     if self.start_token is not None:
@@ -516,7 +559,9 @@ class SDTokenizer:
         #fill last batch
         batch.append((self.end_token, 1.0, 0))
         if self.pad_to_max_length:
-            batch.extend([(pad_token, 1.0, 0)] * (self.max_length - len(batch)))
+            batch.extend([(self.pad_token, 1.0, 0)] * (self.max_length - len(batch)))
+        if self.min_length is not None and len(batch) < self.min_length:
+            batch.extend([(self.pad_token, 1.0, 0)] * (self.min_length - len(batch)))
 
         if not return_word_ids:
             batched_tokens = [[(t, w) for t, w,_ in x] for x in batched_tokens]
@@ -527,13 +572,16 @@ class SDTokenizer:
     
     def untokenize(self, token_weight_pair):
         return list(map(lambda a: (a, self.inv_vocab[a[0]]), token_weight_pair))
+    
+    def state_dict(self):
+        return {}
 
 
 class SD1Tokenizer:
-    def __init__(self, embedding_directory=None, clip_name="l", tokenizer=SDTokenizer):
+    def __init__(self, embedding_directory=None, tokenizer_data={}, clip_name="l", tokenizer=SDTokenizer):
         self.clip_name = clip_name
         self.clip = "clip_{}".format(self.clip_name)
-        setattr(self, self.clip, tokenizer(embedding_directory=embedding_directory))
+        setattr(self, self.clip, tokenizer(embedding_directory=embedding_directory, tokenizer_data=tokenizer_data))
 
     # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
     
@@ -546,24 +594,37 @@ class SD1Tokenizer:
     
     def untokenize(self, token_weight_pair):
         return getattr(self, self.clip).untokenize(token_weight_pair)
+    
+    def state_dict(self):
+        return {}
 
+class SD1CheckpointClipModel(SDClipModel):
+    def __init__(self, device="cpu", dtype=None, model_options={}):
+        super().__init__(device=device, return_projected_pooled=False, dtype=dtype, model_options=model_options)
 
 class SD1ClipModel(torch.nn.Module):
-    def __init__(self, device="cpu", dtype=None, clip_name="l", clip_model=SDClipModel, **kwargs):
+    def __init__(self, device="cpu", dtype=None, model_options={}, clip_name="l", clip_model=SD1CheckpointClipModel, name=None, **kwargs):
         super().__init__()
-        self.clip_name = clip_name
-        self.clip = "clip_{}".format(self.clip_name)
-        setattr(self, self.clip, clip_model(device=device, dtype=dtype, **kwargs))
+        if name is not None:
+            self.clip_name = name
+            self.clip = "{}".format(self.clip_name)
+        else:
+            self.clip_name = clip_name
+            self.clip = "clip_{}".format(self.clip_name)
+
+        setattr(self, self.clip, clip_model(device=device, dtype=dtype, model_options=model_options, **kwargs))
+
+        self.dtypes = set()
+        if dtype is not None:
+            self.dtypes.add(dtype)
 
     # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
-    
-    def clip_layer(self, layer_idx):
-        getattr(self, self.clip).clip_layer(layer_idx)
+    def set_clip_options(self, options):
+        getattr(self, self.clip).set_clip_options(options)
 
     # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
-    
-    def reset_clip_layer(self):
-        getattr(self, self.clip).reset_clip_layer()
+    def reset_clip_options(self):
+        getattr(self, self.clip).reset_clip_options()
 
     # Original code from Comfy, https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py
     

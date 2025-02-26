@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 from torch.utils.checkpoint import checkpoint
 import math
+import logging
 
 try:
 	from typing import Optional, NamedTuple, List, Protocol
@@ -231,6 +232,8 @@ def efficient_dot_product_attention(
     def get_mask_chunk(chunk_idx: int) -> Tensor:
         if mask is None:
             return None
+        if mask.shape[1] == 1:
+            return mask
         chunk = min(query_chunk_size, q_tokens)
         return mask[:,chunk_idx:chunk_idx + chunk]
 

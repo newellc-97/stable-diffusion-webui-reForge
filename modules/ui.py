@@ -7,6 +7,7 @@ import warnings
 from contextlib import ExitStack
 
 import gradio as gr
+import gradio.analytics
 import gradio.utils
 from gradio.components.image_editor import Brush
 from PIL import Image, PngImagePlugin  # noqa: F401
@@ -51,7 +52,7 @@ mimetypes.add_type('text/css', '.css')
 
 if not cmd_opts.share and not cmd_opts.listen:
     # fix gradio phoning home
-    gradio.utils.version_check = lambda: None
+    gradio.analytics.version_check = lambda: None
     gradio.utils.get_local_ip_address = lambda: '127.0.0.1'
 
 if cmd_opts.ngrok is not None:

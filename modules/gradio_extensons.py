@@ -17,7 +17,7 @@ def add_classes_to_gradio_component(comp):
         comp.elem_classes.append('multiselect')
 
 
-def IOComponent_init(self, *args, **kwargs):
+def Component_init(self, *args, **kwargs):
     self.webui_tooltip = kwargs.pop('tooltip', None)
 
     if scripts.scripts_current is not None:
@@ -25,7 +25,7 @@ def IOComponent_init(self, *args, **kwargs):
 
     scripts.script_callbacks.before_component_callback(self, **kwargs)
 
-    res = original_IOComponent_init(self, *args, **kwargs)
+    res = original_Component_init(self, *args, **kwargs)
 
     add_classes_to_gradio_component(self)
 
@@ -141,7 +141,7 @@ def Image_init_extension(self, *args, **kwargs):
     return res
 
 
-original_IOComponent_init = patches.patch(__name__, obj=gr.components.IOComponent, field="__init__", replacement=IOComponent_init)
+original_Component_init = patches.patch(__name__, obj=gr.components.Component, field="__init__", replacement=Component_init)
 original_Block_get_config = patches.patch(__name__, obj=gr.blocks.Block, field="get_config", replacement=Block_get_config)
 original_BlockContext_init = patches.patch(__name__, obj=gr.blocks.BlockContext, field="__init__", replacement=BlockContext_init)
 original_Blocks_get_config_file = patches.patch(__name__, obj=gr.blocks.Blocks, field="get_config_file", replacement=Blocks_get_config_file)

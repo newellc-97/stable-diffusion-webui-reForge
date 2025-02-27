@@ -1,6 +1,7 @@
 from functools import wraps
 
 import gradio as gr
+# Required. Else gradio just dies when handling dropdowns.
 from modules import gradio_extensons  # noqa: F401
 
 

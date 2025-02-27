@@ -98,41 +98,35 @@ class DropdownEditable(gr.Dropdown, FormComponent):
     def get_block_name(self):
         return "dropdown"
 
-
-class InputAccordion(gr.Checkbox):
+class InputAccordionImpl(gr.Checkbox):
     """A gr.Accordion that can be used as an input - returns True if open, False if closed.
 
     Actually just a hidden checkbox, but creates an accordion that follows and is followed by the state of the checkbox.
     """
 
-    accordion_id_set = set()
+    webui_do_not_create_gradio_pyi_thank_you = True
 
     global_index = 0
 
-    def __init__(self, value, **kwargs):
+    @wraps(gr.Checkbox.__init__)
+    def __init__(self, value=None, setup=False, **kwargs):
+        if not setup:
+            super().__init__(value=value, **kwargs)
+            return
+
         self.accordion_id = kwargs.get('elem_id')
         if self.accordion_id is None:
-            self.accordion_id = f"input-accordion-{InputAccordion.global_index}"
-            InputAccordion.global_index += 1
-
-        if not InputAccordion.accordion_id_set:
-            from modules import script_callbacks
-            script_callbacks.on_script_unloaded(InputAccordion.reset)
-        if self.accordion_id in InputAccordion.accordion_id_set:
-            count = 1
-            while (unique_id := f'{self.accordion_id}-{count}') in InputAccordion.accordion_id_set:
-                count += 1
-            self.accordion_id = unique_id
-        InputAccordion.accordion_id_set.add(self.accordion_id)
+            self.accordion_id = f"input-accordion-{InputAccordionImpl.global_index}"
+            InputAccordionImpl.global_index += 1
 
         kwargs_checkbox = {
             **kwargs,
             "elem_id": f"{self.accordion_id}-checkbox",
             "visible": False,
         }
-        super().__init__(value, **kwargs_checkbox)
+        super().__init__(value=value, **kwargs_checkbox)
 
-        self.change(fn=None, _js='function(checked){ inputAccordionChecked("' + self.accordion_id + '", checked); }', inputs=[self])
+        self.change(fn=None, js='function(checked){ inputAccordionChecked("' + self.accordion_id + '", checked); }', inputs=[self])
 
         kwargs_accordion = {
             **kwargs,
@@ -141,6 +135,7 @@ class InputAccordion(gr.Checkbox):
             "elem_classes": ['input-accordion'],
             "open": value,
         }
+
         self.accordion = gr.Accordion(**kwargs_accordion)
 
     def extra(self):
@@ -168,8 +163,7 @@ class InputAccordion(gr.Checkbox):
 
     def get_block_name(self):
         return "checkbox"
-    
-    @classmethod
-    def reset(cls):
-        cls.global_index = 0
-        cls.accordion_id_set.clear()
+
+
+def InputAccordion(value=None, **kwargs):
+    return InputAccordionImpl(value=value, setup=True, **kwargs)

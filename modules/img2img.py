@@ -173,8 +173,8 @@ def img2img_function(id_task: str,
     image_cfg_scale: float,
     denoising_strength: float,
     selected_scale_tab: int,
-    height: int,
-    width: int,
+    height: int|str,
+    width: int|str,
     scale_by: float,
     resize_mode: int,
     inpaint_full_res: bool,
@@ -193,6 +193,9 @@ def img2img_function(id_task: str,
     override_settings = create_override_settings_dict(override_settings_texts)
 
     is_batch = mode == 5
+    
+    # Forge converts height and width to integers here. Gradio returns a str for these 2 when measured from image. - Ristellise
+    height, width = int(height), int(width)
 
     if mode == 0:  # img2img
         image = init_img

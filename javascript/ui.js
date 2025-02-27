@@ -388,8 +388,8 @@ function selectCheckpoint(name) {
 }
 
 function currentImg2imgSourceResolution(w, h, scaleBy) {
-    var img = gradioApp().querySelector('#mode_img2img > div[style="display: block;"] img');
-    return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
+    var img = gradioApp().querySelector('#mode_img2img > div[style="display: block;"] :is(img, canvas)');
+    return img ? [img.naturalWidth || img.width, img.naturalHeight || img.height, scaleBy] : [0, 0, scaleBy];
 }
 
 function updateImg2imgResizeToTextAfterChangingImage() {

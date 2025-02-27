@@ -408,7 +408,7 @@ def create_ui():
                 )
 
             output_panel = create_output_panel("txt2img", opts.outdir_txt2img_samples, toprow)
-            
+
 
             txt2img_inputs = [
                 dummy_component,
@@ -526,7 +526,6 @@ def create_ui():
                 width,
                 height,
             ]
-
             toprow.ui_styles.dropdown.change(fn=wrap_queued_call(update_token_counter), inputs=[toprow.prompt, steps, toprow.ui_styles.dropdown], outputs=[toprow.token_counter])
             toprow.ui_styles.dropdown.change(fn=wrap_queued_call(update_negative_prompt_token_counter), inputs=[toprow.negative_prompt, steps, toprow.ui_styles.dropdown], outputs=[toprow.negative_token_counter])
             toprow.token_button.click(fn=wrap_queued_call(update_token_counter), inputs=[toprow.prompt, steps, toprow.ui_styles.dropdown], outputs=[toprow.token_counter])

@@ -165,5 +165,5 @@ class InputAccordionImpl(gr.Checkbox):
         return "checkbox"
 
 
-def InputAccordion(value=None, **kwargs):
+def InputAccordion(value=None, **kwargs) -> InputAccordionImpl:
     return InputAccordionImpl(value=value, setup=True, **kwargs)

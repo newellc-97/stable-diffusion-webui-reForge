@@ -231,14 +231,14 @@ class UiSettings:
                 fn=lambda: None,
                 inputs=[],
                 outputs=[],
-                _js='function(){}'
+                js='function(){}'
             )
 
             download_localization.click(
                 fn=lambda: None,
                 inputs=[],
                 outputs=[],
-                _js='download_localization'
+                js='download_localization'
             )
 
             def reload_scripts():
@@ -253,7 +253,7 @@ class UiSettings:
 
             restart_gradio.click(
                 fn=shared.state.request_restart,
-                _js='restart_reload',
+                js='restart_reload',
                 inputs=[],
                 outputs=[],
             )
@@ -326,7 +326,7 @@ class UiSettings:
         button_set_checkpoint = gr.Button('Change checkpoint', elem_id='change_checkpoint', visible=False)
         button_set_checkpoint.click(
             fn=lambda value, _: self.run_settings_single(value, key='sd_model_checkpoint'),
-            _js="function(v){ var res = desiredCheckpointName; desiredCheckpointName = ''; return [res || v, null]; }",
+            js="function(v){ var res = desiredCheckpointName; desiredCheckpointName = ''; return [res || v, null]; }",
             inputs=[self.component_dict['sd_model_checkpoint'], self.dummy_component],
             outputs=[self.component_dict['sd_model_checkpoint'], self.text_settings],
         )

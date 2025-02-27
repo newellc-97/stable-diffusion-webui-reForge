@@ -15,7 +15,7 @@ from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call, wrap_grad
 
 from modules import gradio_extensons, sd_schedulers  # noqa: F401
 from modules import sd_hijack, sd_models, script_callbacks, ui_extensions, deepbooru, extra_networks, ui_common, ui_postprocessing, progress, ui_loadsave, shared_items, ui_settings, timer, sysinfo, ui_checkpoint_merger, scripts, sd_samplers, processing, ui_extra_networks, ui_toprow, launch_utils
-from modules.ui_components import FormRow, FormGroup, ToolButton, FormHTML, InputAccordion, ResizeHandleRow
+from modules.ui_components import FormRow, FormGroup, ToolButton, FormHTML, ResizeHandleRow, InputAccordion
 from modules.paths import script_path
 from modules.ui_common import create_refresh_button
 from modules.ui_gradio_extensions import reload_javascript
@@ -162,7 +162,7 @@ def interrogate_deepbooru(image):
 def connect_clear_prompt(button):
     """Given clear button, prompt, and token_counter objects, setup clear prompt button click event"""
     button.click(
-        _js="clear_prompt",
+        js="clear_prompt",
         fn=None,
         inputs=[],
         outputs=[],
@@ -349,10 +349,9 @@ def create_ui():
                                     hr_resize_y = gr.Slider(minimum=0, maximum=2048, step=8, label="Resize height to", value=0, elem_id="txt2img_hr_resize_y")
 
                                 with FormRow(elem_id="txt2img_hires_fix_row_cfg", variant="compact"):
-                                    hr_cfg = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label="Hires CFG Scale", value=0.0, elem_id="txt2img_hr_cfg")
+                                    hr_cfg = gr.Slider(minimum=1.0, maximum=30.0, step=0.1, label="Hires CFG Scale", value=7.0, elem_id="txt2img_hr_cfg")
 
                                 with FormRow(elem_id="txt2img_hires_fix_row3", variant="compact", visible=opts.hires_fix_show_sampler) as hr_sampler_container:
-
                                     hr_checkpoint_name = gr.Dropdown(label='Checkpoint', elem_id="hr_checkpoint", choices=["Use same checkpoint"] + modules.sd_models.checkpoint_tiles(use_short=True), value="Use same checkpoint")
                                     create_refresh_button(hr_checkpoint_name, modules.sd_models.list_models, lambda: {"choices": ["Use same checkpoint"] + modules.sd_models.checkpoint_tiles(use_short=True)}, "hr_checkpoint_refresh")
 
@@ -366,6 +365,7 @@ def create_ui():
                                     with gr.Column(scale=80):
                                         with gr.Row():
                                             hr_negative_prompt = gr.Textbox(label="Hires negative prompt", elem_id="hires_neg_prompt", show_label=False, lines=3, placeholder="Negative prompt for hires fix pass.\nLeave empty to use the same negative prompt as in first pass.", elem_classes=["prompt"])
+
 
                                 hr_cfg.change(lambda x: gr.update(interactive=(x != 1)), inputs=[hr_cfg], outputs=[hr_negative_prompt], queue=False, show_progress=False)
 
@@ -397,17 +397,18 @@ def create_ui():
                     fn=calc_resolution_hires,
                     inputs=hr_resolution_preview_inputs,
                     outputs=[hr_final_resolution],
-                    show_progress=False,
+                    show_progress='hidden',
                 )
                 event(
                     None,
-                    _js="onCalcResolutionHires",
+                    js="onCalcResolutionHires",
                     inputs=hr_resolution_preview_inputs,
                     outputs=[],
-                    show_progress=False,
+                    show_progress='hidden',
                 )
 
             output_panel = create_output_panel("txt2img", opts.outdir_txt2img_samples, toprow)
+            
 
             txt2img_inputs = [
                 dummy_component,
@@ -444,7 +445,7 @@ def create_ui():
 
             txt2img_args = dict(
                 fn=wrap_gradio_gpu_call(modules.txt2img.txt2img, extra_outputs=[None, '', '']),
-                _js="submit",
+                js="submit",
                 inputs=txt2img_inputs,
                 outputs=txt2img_outputs,
                 show_progress=False,
@@ -459,10 +460,10 @@ def create_ui():
                     index += 1
                 return gr.update(selected_index=index)
 
-            txt2img_upscale_inputs = txt2img_inputs[0:1] + [output_panel.gallery, dummy_component_number, output_panel.generation_info] + txt2img_inputs[1:]
+            txt2img_upscale_inputs = txt2img_inputs[0:1] + [output_panel.gallery, output_panel.generation_info] + txt2img_inputs[1:]
             output_panel.button_upscale.click(
                 fn=wrap_gradio_gpu_call(modules.txt2img.txt2img_upscale, extra_outputs=[None, '', '']),
-                _js="submit_txt2img_upscale",
+                js="submit_txt2img_upscale",
                 inputs=txt2img_upscale_inputs,
                 outputs=txt2img_outputs,
                 show_progress=False,
@@ -472,7 +473,7 @@ def create_ui():
 
             toprow.restore_progress_button.click(
                 fn=progress.restore_progress,
-                _js="restoreProgressTxt2img",
+                js="restoreProgressTxt2img",
                 inputs=[dummy_component],
                 outputs=[
                     output_panel.gallery,
@@ -645,7 +646,7 @@ def create_ui():
                             )
                             button.click(
                                 fn=None,
-                                _js=f"switch_to_{name.replace(' ', '_')}",
+                                js=f"switch_to_{name.replace(' ', '_')}",
                                 inputs=[],
                                 outputs=[],
                             )
@@ -678,7 +679,7 @@ def create_ui():
 
                                     on_change_args = dict(
                                         fn=resize_from_to_html,
-                                        _js="currentImg2imgSourceResolution",
+                                        js="currentImg2imgSourceResolution",
                                         inputs=[dummy_component, dummy_component, scale_by],
                                         outputs=scale_by_html,
                                         show_progress=False,
@@ -758,12 +759,6 @@ def create_ui():
                     if category not in {"accordions"}:
                         scripts.scripts_img2img.setup_ui_for_section(category)
 
-            # the code below is meant to update the resolution label after the image in the image selection UI has changed.
-            # as it is now the event keeps firing continuously for inpaint edits, which ruins the page with constant requests.
-            # I assume this must be a gradio bug and for now we'll just do it for non-inpaint inputs.
-            # for component in [init_img, sketch]:
-            #     component.change(fn=lambda: None, _js="updateImg2imgResizeToTextAfterChangingImage", inputs=[], outputs=[], show_progress=False)
-
             def select_img2img_tab(tab):
                 return gr.update(visible=tab in [2, 3, 4]), gr.update(visible=tab == 3),
 
@@ -820,7 +815,7 @@ def create_ui():
 
             img2img_args = dict(
                 fn=wrap_gradio_gpu_call(modules.img2img.img2img, extra_outputs=[None, '', '']),
-                _js="submit_img2img",
+                js="submit_img2img",
                 inputs=submit_img2img_inputs,
                 outputs=[
                     output_panel.gallery,
@@ -832,7 +827,7 @@ def create_ui():
             )
 
             interrogate_args = dict(
-                _js="get_img2img_tab_index",
+                js="get_img2img_tab_index",
                 inputs=[
                     dummy_component,
                     img2img_batch_input_dir,
@@ -853,7 +848,7 @@ def create_ui():
 
             detect_image_size_btn.click(
                 fn=lambda w, h: (w or gr.update(), h or gr.update()),
-                _js="currentImg2imgSourceResolution",
+                js="currentImg2imgSourceResolution",
                 inputs=[dummy_component, dummy_component],
                 outputs=[width, height],
                 show_progress=False,
@@ -861,7 +856,7 @@ def create_ui():
 
             toprow.restore_progress_button.click(
                 fn=progress.restore_progress,
-                _js="restoreProgressImg2img",
+                js="restoreProgressImg2img",
                 inputs=[dummy_component],
                 outputs=[
                     output_panel.gallery,
@@ -1087,7 +1082,7 @@ def create_ui():
 
         train_embedding.click(
             fn=wrap_gradio_gpu_call(textual_inversion_ui.train_embedding, extra_outputs=[gr.update()]),
-            _js="start_training_textual_inversion",
+            js="start_training_textual_inversion",
             inputs=[
                 dummy_component,
                 train_embedding_name,
@@ -1121,7 +1116,7 @@ def create_ui():
 
         train_hypernetwork.click(
             fn=wrap_gradio_gpu_call(hypernetworks_ui.train_hypernetwork, extra_outputs=[gr.update()]),
-            _js="start_training_textual_inversion",
+            js="start_training_textual_inversion",
             inputs=[
                 dummy_component,
                 train_hypernetwork_name,
@@ -1195,6 +1190,8 @@ def create_ui():
                 if label in shared.opts.hidden_tabs:
                     continue
                 with gr.TabItem(label, id=ifid, elem_id=f"tab_{ifid}"):
+                    if interface is None:
+                        raise Exception(f"interface is None for {label}")
                     interface.render()
 
                 if ifid not in ["extensions", "settings"]:

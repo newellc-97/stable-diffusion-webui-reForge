@@ -163,9 +163,9 @@ class Dependency(gr.events.Dependency):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        def then(*xargs, _js=None, **xkwargs):
-            if _js:
-                xkwargs['js'] = _js
+        def then(*xargs, js=None, **xkwargs):
+            # if _js:
+            #     xkwargs['js'] = _js
 
             return original_then(*xargs, **xkwargs)
 

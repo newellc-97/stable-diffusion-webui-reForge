@@ -5,11 +5,11 @@ from typing import Dict, List
 
 from modules import scripts
 from lib_controlnet.infotext import parse_unit, serialize_unit
-from lib_controlnet.controlnet_ui.tool_button import ToolButton
 from lib_controlnet.logging import logger
 from lib_controlnet.external_code import ControlNetUnit, UiControlNetUnit
 from lib_controlnet.global_state import get_preprocessor
 from modules_forge.supported_preprocessor import Preprocessor
+from modules.ui_components import ToolButton
 
 save_symbol = "\U0001f4be"  # 💾
 delete_symbol = "\U0001f5d1\ufe0f"  # 🗑️

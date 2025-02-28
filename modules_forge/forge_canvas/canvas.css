@@ -3,6 +3,7 @@
     height: 512px;
     position: relative;
     overflow: hidden;
+    touch-action: none;
 }
 
 .forge-image-container-plain {

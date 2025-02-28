@@ -275,6 +275,13 @@ class ForgeCanvas {
     scribbleIndicatorElement.style.width = indicatorSize + "px";
     scribbleIndicatorElement.style.height = indicatorSize + "px";
 
+    const touchDevice = (navigator.maxTouchPoints || 'ontouchstart' in document.documentElement);
+    var lockToolbar = false
+    if (touchDevice && touchDevice >= 1) {
+      toolbarElement.style.opacity = "1";
+      lockToolbar = true;
+    }
+
     // Set initial height of the container.
     containerElement.style.height = forgeCanvas.initial_height + "px";
 
@@ -567,7 +574,8 @@ class ForgeCanvas {
 
     // Hide toolbar and reset cursors on pointer out of image container.
     imageContainerElement.addEventListener("pointerout", function () {
-      toolbarElement.style.opacity = "0";
+      if (!lockToolbar)
+        toolbarElement.style.opacity = "0";
       imageElement.style.cursor = "";
       drawingCanvasElement.style.cursor = "";
       imageContainerElement.style.cursor = "";
@@ -579,6 +587,7 @@ class ForgeCanvas {
       forgeCanvas.resizing = true;
       event.preventDefault();
       event.stopPropagation();
+      
     });
 
     // Event listener for document pointer move (resizing container).
@@ -596,7 +605,7 @@ class ForgeCanvas {
     document.addEventListener("pointerup", function () {
       forgeCanvas.resizing = false;
     });
-    document.addEventListener("pointerleave", function () {
+    document.addEventListener("pointerleave", function (event) {
       forgeCanvas.resizing = false;
     });
 

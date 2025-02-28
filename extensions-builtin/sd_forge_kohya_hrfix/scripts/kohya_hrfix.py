@@ -2,7 +2,7 @@ import gradio as gr
 
 from modules import scripts, shared
 from modules.ui_components import InputAccordion
-from backend.misc.image_resize import adaptive_resize
+from ldm_patched.modules.utils import common_upscale
 
 
 class PatchModelAddDownscale:
@@ -14,7 +14,7 @@ class PatchModelAddDownscale:
             if transformer_options["block"][1] == block_number:
                 sigma = transformer_options["sigmas"][0].item()
                 if sigma <= sigma_start and sigma >= sigma_end:
-                    h = adaptive_resize(h, round(h.shape[-1] * (1.0 / downscale_factor)), round(h.shape[-2] * (1.0 / downscale_factor)), downscale_method, "disabled")
+                    h = common_upscale(h, round(h.shape[-1] * (1.0 / downscale_factor)), round(h.shape[-2] * (1.0 / downscale_factor)), downscale_method, "disabled")
 
             shared.kohya_shrink_shape = (h.shape[-1], h.shape[-2])
             shared.kohya_shrink_shape_out = None
@@ -22,7 +22,7 @@ class PatchModelAddDownscale:
 
         def output_block_patch(h, hsp, transformer_options):
             if h.shape[2] != hsp.shape[2]:
-                h = adaptive_resize(h, hsp.shape[-1], hsp.shape[-2], upscale_method, "disabled")
+                h = common_upscale(h, hsp.shape[-1], hsp.shape[-2], upscale_method, "disabled")
 
             shared.kohya_shrink_shape_out = (h.shape[-1], h.shape[-2])
             return h, hsp

@@ -385,18 +385,6 @@ class ControlNetUiGroup(object):
                     elem_id=f"{elem_id_tabname}_{tabname}_controlnet_open_new_canvas_button",
                     tooltip=ControlNetUiGroup.tooltips[ControlNetUiGroup.open_symbol],
                 )
-                self.webcam_enable = ToolButton(
-                    value=ControlNetUiGroup.camera_symbol,
-                    elem_id=f"{elem_id_tabname}_{tabname}_controlnet_webcam_enable",
-                    tooltip=ControlNetUiGroup.tooltips[ControlNetUiGroup.camera_symbol],
-                )
-                self.webcam_mirror = ToolButton(
-                    value=ControlNetUiGroup.reverse_symbol,
-                    elem_id=f"{elem_id_tabname}_{tabname}_controlnet_webcam_mirror",
-                    tooltip=ControlNetUiGroup.tooltips[
-                        ControlNetUiGroup.reverse_symbol
-                    ],
-                )
                 self.send_dimen_button = ToolButton(
                     value=ControlNetUiGroup.tossup_symbol,
                     elem_id=f"{elem_id_tabname}_{tabname}_controlnet_send_dimen_button",
@@ -734,28 +722,6 @@ class ControlNetUiGroup(object):
             inputs=[self.image],
             outputs=[self.width_slider, self.height_slider],
             show_progress=False,
-        )
-
-    def register_webcam_toggle(self):
-        def webcam_toggle():
-            self.webcam_enabled = not self.webcam_enabled
-            return {
-                "value": None,
-                "source": "webcam" if self.webcam_enabled else "upload",
-                "__type__": "update",
-            }
-
-        self.webcam_enable.click(
-            webcam_toggle, inputs=None, outputs=self.image, show_progress=False
-        )
-
-    def register_webcam_mirror_toggle(self):
-        def webcam_mirror_toggle():
-            self.webcam_mirrored = not self.webcam_mirrored
-            return {"mirror_webcam": self.webcam_mirrored, "__type__": "update"}
-
-        self.webcam_mirror.click(
-            webcam_mirror_toggle, inputs=None, outputs=self.image, show_progress=False
         )
 
     def register_refresh_all_models(self):
@@ -1183,8 +1149,6 @@ class ControlNetUiGroup(object):
     def register_core_callbacks(self):
         """Register core callbacks that only involves gradio components defined
         within this ui group."""
-        self.register_webcam_toggle()
-        self.register_webcam_mirror_toggle()
         self.register_refresh_all_models()
         self.register_build_sliders()
         self.register_shift_preview()

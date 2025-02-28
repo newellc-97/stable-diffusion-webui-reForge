@@ -177,3 +177,21 @@ class Dependency(gr.events.Dependency):
 gr.events.Dependency = Dependency
 
 gr.Box = gr.Group
+
+def patched_url_ok(url: str) -> bool:
+    # Retry for longer i guess.
+    import httpx, time
+    try:
+        for _ in range(5*60):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore")
+                r = httpx.head(url, timeout=3, verify=False)
+            if r.status_code in (200, 401, 302):  # 401 or 302 if auth is set
+                return True
+            time.sleep(0.500)
+    except (ConnectionError, httpx.ConnectError):
+        return False
+    return False
+
+
+gradio.networking.url_ok = patched_url_ok

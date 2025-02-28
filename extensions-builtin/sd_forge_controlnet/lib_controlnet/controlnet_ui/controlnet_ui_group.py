@@ -718,7 +718,7 @@ class ControlNetUiGroup(object):
 
         self.send_dimen_button.click(
             fn=send_dimensions,
-            inputs=[self.image],
+            inputs=[self.image.background],
             outputs=[self.width_slider, self.height_slider],
             show_progress=False,
         )
@@ -835,7 +835,7 @@ class ControlNetUiGroup(object):
         )
 
     def register_run_annotator(self):
-        def run_annotator(image, module, pres, pthr_a, pthr_b, t2i_w, t2i_h, pp, rm):
+        def run_annotator(image,mask, module, pres, pthr_a, pthr_b, t2i_w, t2i_h, pp, rm):
             if image is None:
                 return (
                     gr.update(value=None, visible=True),
@@ -843,8 +843,8 @@ class ControlNetUiGroup(object):
                     *self.openpose_editor.update(""),
                 )
 
-            img = HWC3(image["image"])
-            mask = HWC3(image["mask"])
+            img = HWC3(image)
+            mask = HWC3(mask)
 
             if not (mask > 5).any():
                 mask = None
@@ -909,7 +909,8 @@ class ControlNetUiGroup(object):
         self.trigger_preprocessor.click(
             fn=run_annotator,
             inputs=[
-                self.image,
+                self.image.background,
+                self.image.foreground,
                 self.module,
                 self.processor_res,
                 self.threshold_a,
@@ -920,7 +921,7 @@ class ControlNetUiGroup(object):
                 self.resize_mode,
             ],
             outputs=[
-                self.generated_image,
+                self.generated_image.background,
                 self.preprocessor_preview,
                 *self.openpose_editor.outputs(),
             ],
@@ -945,7 +946,7 @@ class ControlNetUiGroup(object):
             fn=shift_preview,
             inputs=[self.preprocessor_preview],
             outputs=[
-                self.generated_image,
+                self.generated_image.background,
                 self.generated_image_group,
                 self.use_preview_as_input,
                 self.openpose_editor.download_link,
@@ -976,7 +977,7 @@ class ControlNetUiGroup(object):
         self.canvas_create_button.click(
             fn=fn_canvas,
             inputs=[self.canvas_height, self.canvas_width],
-            outputs=[self.image, self.create_canvas],
+            outputs=[self.image.background, self.create_canvas],
             show_progress=False,
         )
 
@@ -992,7 +993,7 @@ class ControlNetUiGroup(object):
             fn_same_checked,
             inputs=self.upload_independent_img_in_img2img,
             outputs=[
-                self.image,
+                self.image.background,
                 self.batch_image_dir,
                 self.preprocessor_preview,
                 self.image_upload_panel,
@@ -1047,7 +1048,7 @@ class ControlNetUiGroup(object):
             inputs=[self.mask_upload, self.height_slider, self.width_slider],
             outputs=[
                 self.mask_image_group,
-                self.mask_image,
+                self.mask_image.background,
                 self.batch_mask_dir,
                 self.batch_mask_gallery.group,
                 self.batch_mask_gallery.input_gallery,
@@ -1130,7 +1131,7 @@ class ControlNetUiGroup(object):
                 event_subscriber(
                     fn=clear_preview,
                     inputs=self.use_preview_as_input,
-                    outputs=[self.use_preview_as_input, self.generated_image],
+                    outputs=[self.use_preview_as_input, self.generated_image.background],
                     show_progress=False
                 )
 

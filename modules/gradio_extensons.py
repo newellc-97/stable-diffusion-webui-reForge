@@ -163,9 +163,10 @@ class Dependency(gr.events.Dependency):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        def then(*xargs, js=None, **xkwargs):
-            # if _js:
-            #     xkwargs['js'] = _js
+        def then(*xargs, js=None, _js=None,**xkwargs):
+            if _js:
+                warnings.warn(f"_js is deprecated.", GradioDeprecationWarning, stacklevel=2)
+                xkwargs['js'] = _js
 
             return original_then(*xargs, **xkwargs)
 

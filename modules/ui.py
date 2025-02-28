@@ -13,7 +13,7 @@ from gradio.components.image_editor import Brush
 from PIL import Image, PngImagePlugin  # noqa: F401
 from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call, wrap_gradio_call, wrap_gradio_call_no_job # noqa: F401
 
-from modules import gradio_extensons, sd_schedulers  # noqa: F401
+from modules import gradio_extensions, sd_schedulers  # noqa: F401
 from modules import sd_hijack, sd_models, script_callbacks, ui_extensions, deepbooru, extra_networks, ui_common, ui_postprocessing, progress, ui_loadsave, shared_items, ui_settings, timer, sysinfo, ui_checkpoint_merger, scripts, sd_samplers, processing, ui_extra_networks, ui_toprow, launch_utils
 from modules.ui_components import FormRow, FormGroup, ToolButton, FormHTML, ResizeHandleRow, InputAccordion
 from modules.paths import script_path
@@ -36,7 +36,7 @@ import modules.processing_scripts.comments as comments
 create_setting_component = ui_settings.create_setting_component
 
 warnings.filterwarnings("default" if opts.show_warnings else "ignore", category=UserWarning)
-warnings.filterwarnings("default" if opts.show_gradio_deprecation_warnings else "ignore", category=gradio_extensons.GradioDeprecationWarning)
+warnings.filterwarnings("default" if opts.show_gradio_deprecation_warnings else "ignore", category=gradio_extensions.GradioDeprecationWarning)
 
 # this is a fix for Windows users. Without it, javascript files will be served with text/html content-type and the browser will not show any UI
 mimetypes.init()

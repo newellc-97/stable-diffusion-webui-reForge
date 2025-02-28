@@ -2,7 +2,7 @@ from functools import wraps
 
 import gradio as gr
 # Required. Else gradio just dies when handling dropdowns.
-from modules import gradio_extensons  # noqa: F401
+from modules import gradio_extensions  # noqa: F401
 
 
 class FormComponent:

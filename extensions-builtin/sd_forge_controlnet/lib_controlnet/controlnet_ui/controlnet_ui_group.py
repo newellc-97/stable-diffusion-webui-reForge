@@ -344,7 +344,7 @@ class ControlNetUiGroup(object):
                         self.multi_inputs_gallery = MultiInputsGallery()
 
             if self.photopea:
-                self.photopea.attach_photopea_output(self.generated_image)
+                self.photopea.attach_photopea_output(self.generated_image.background)
 
             with gr.Accordion(
                 label="Open New Canvas", visible=False
@@ -650,14 +650,16 @@ class ControlNetUiGroup(object):
             self.batch_input_gallery.input_gallery,
             self.batch_mask_gallery.input_gallery,
             self.multi_inputs_gallery.input_gallery,
-            self.generated_image,
-            self.mask_image,
+            self.generated_image.background,
+            self.mask_image.background,
+            self.mask_image.foreground,
             self.hr_option,
             self.enabled,
             self.module,
             self.model,
             self.weight,
-            self.image,
+            self.image.background,
+            self.image.foreground,
             self.resize_mode,
             self.processor_res,
             self.threshold_a,

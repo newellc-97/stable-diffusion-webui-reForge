@@ -383,6 +383,7 @@ options_templates.update(options_section(('ui_prompt_editing', "Prompt editing",
     "disable_token_counters": OptionInfo(False, "Disable prompt token counters"),
     "include_styles_into_token_counters": OptionInfo(True, "Count tokens of enabled styles").info("When calculating how many tokens the prompt has, also consider tokens added by enabled styles."),
     "add_styles_to_prompt": OptionInfo(True, "Add selected styles to prompt on generation"),
+    "auto_sort_styles_on_restart": OptionInfo(False, "Automatically sort styles by name upon restarting server"),
 }))
 
 options_templates.update(options_section(('ui_gallery', "Gallery", "ui"), {

@@ -5,6 +5,7 @@ import csv
 import os
 import typing
 import shutil
+import modules.shared as shared
 
 
 class PromptStyle(typing.NamedTuple):
@@ -133,6 +134,8 @@ class StyleDatabase:
         try:
             with open(path, "r", encoding="utf-8-sig", newline="") as file:
                 reader = csv.DictReader(file, skipinitialspace=True)
+
+                unsorted = []
                 for row in reader:
                     # Ignore empty rows or rows starting with a comment
                     if not row or row["name"].startswith("#"):
@@ -141,9 +144,19 @@ class StyleDatabase:
                     prompt = row["prompt"] if "prompt" in row else row["text"]
                     negative_prompt = row.get("negative_prompt", "")
                     # Add style to database
-                    self.styles[row["name"]] = PromptStyle(
+                    unsorted.append(PromptStyle(
                         row["name"], prompt, negative_prompt, str(path)
-                    )
+                    ))
+                
+                styleList = unsorted
+                if(shared.opts.auto_sort_styles_on_restart):
+                    # Sort styles alphabetically by name
+                    styleList = sorted(unsorted, key=lambda prompt: prompt[0])
+
+                # Add styles to Dict
+                for prompt in styleList:
+                    self.styles[prompt.name] = prompt
+
         except Exception:
             errors.report(f'Error loading styles from {path}: ', exc_info=True)
 

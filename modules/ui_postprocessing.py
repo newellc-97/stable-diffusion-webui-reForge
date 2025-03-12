@@ -35,21 +35,19 @@ def create_ui():
     tab_batch.select(fn=lambda: 1, inputs=[], outputs=[tab_index])
     tab_batch_dir.select(fn=lambda: 2, inputs=[], outputs=[tab_index])
 
-    submit_click_inputs = [
-        dummy_component,
-        tab_index,
-        extras_image,
-        image_batch,
-        extras_batch_input_dir,
-        extras_batch_output_dir,
-        show_extras_results,
-        *script_inputs
-    ]
-
     submit.click(
         fn=call_queue.wrap_gradio_gpu_call(postprocessing.run_postprocessing_webui, extra_outputs=[None, '']),
-        js=f"submit_extras",
-        inputs=submit_click_inputs,
+        js="submit_extras",
+        inputs=[
+            dummy_component,
+            tab_index,
+            extras_image,
+            image_batch,
+            extras_batch_input_dir,
+            extras_batch_output_dir,
+            show_extras_results,
+            *script_inputs
+        ],
         outputs=[
             output_panel.gallery,
             output_panel.generation_info,

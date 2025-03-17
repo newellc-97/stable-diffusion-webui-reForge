@@ -4,12 +4,13 @@ Stable Diffusion WebUI Forge/reForge is a platform on top of [Stable Diffusion W
 
 The name "Forge" is inspired from "Minecraft Forge". This project is aimed at becoming SD WebUI's Forge.
 
-# Important: Branches (Update on 27th December 2024)
+# Important: Branches
 
-* main: Has all the possible upstream changes from A1111, new samplers/schedulers/sd options/etc and some small modifications in the backend compared to the original forge (mostly to load multiple checkpoints at the same time). It may be missing some new features related to the comfy backend (from 2024-01 and onwards when it's not samplers). This branch may be slower than the other branches like dev2/dev2/experimental.
-* dev: This branch has everything dev branch has, and all applicable updates from Comfy upstream, may have more features vs dev branch. Could have some more instabilities, but should also be generally stable for daily usage.
-* dev2: Same as dev backend, but it uses gradio 4.0 instead of 3.42. This is to test some extensions and changes, then it will be moved to dev, and then to main branch.
+* main: Has all the possible upstream changes from A1111, new samplers/schedulers/sd options/etc and now, comfy backend updated to stream, so this deprecated the old forge backend.
+* dev: At this point (2025-03-13), it is the same as main branch.
+* dev2: Same as dev branch, but it uses gradio 4.0 instead of 3.42. This is to test some extensions and changes, then it will be moved to dev, and then to main branch.
 * experimental: This branch will have some experimental changes that may have major new features, but they may be incomplete or have major bugs, based on the dev2 branch. This branch will be mostly inactive until I want to test things.
+* main-old: Branch with old forge backend. Kept as backup in any case, but it won't receive updates.
 * dev_upstream: Deprecated, see more https://github.com/Panchovix/stable-diffusion-webui-reForge/discussions/175
 * dev_upsteam_experimental: Deprecated, see more https://github.com/Panchovix/stable-diffusion-webui-reForge/discussions/175
 * main_new_forge: Deprecated, see more https://github.com/lllyasviel/stable-diffusion-webui-forge/discussions/981.
@@ -71,35 +72,13 @@ git branch -u reForge/main
 git stash
 git pull
 ```
-To go back to OG A1111, just do `git checkout master` or `git checkout dev`.
+To go back to OG A1111, just do `git checkout master` or `git checkout main`.
 
 If you got stuck in a merge to resolve conflicts, you can go back with `git merge --abort`
 
 -------
 
 Pre-done package is planned, but I'm not sure how to do it. Any PR or help with this is appreciated.
-
-# MESSAGE IF YOU WERE ON DEV/DEV2/EXPERIMENTAL ON 2025-01-24
-
-Branches had some major issues and they had to be re-done. So you will get issues when trying to do a git pull, and if resolving conflicts, it will be not working correctly.
-
-To fix this, do this (if you had any modifications, backup them to another folder. If you used symbolic links for models, embeddings etc do the same)
-
-```bash
-git checkout main
-git fetch origin
-'if you weren't on dev, then do'
-git checkout dev
-git reset --hard origin/dev
-'if you weren't on dev2, then do'
-git checkout dev2
-git reset --hard origin/dev2
-'if you weren't on experimental, then do'
-git checkout experimental
-git reset --hard origin/experimental
-```
-
-Then you can do git checkout normally to the fixed branches.
 
 # Forge/reForge Backend
 
@@ -117,7 +96,7 @@ Without any cmd flag, Forge/reForge can run SDXL with 4GB vram and SD1.5 with 2G
 
 4. `--pin-shared-memory` (This flag will make things **faster** but more risky). Effective only when used together with `--cuda-stream`. This will offload modules to Shared GPU Memory instead of system RAM when offloading models. On some 30XX/40XX devices with small VRAM (eg, RTX 4050 6GB, RTX 3060 Laptop 6GB, etc), I can observe significant (at least 20\%) speed-up for SDXL. However, this unfortunately cannot be set as default because the OOM of Shared GPU Memory is a much more severe problem than common GPU memory OOM. Pytorch does not provide any robust method to unload or detect Shared GPU Memory. Once the Shared GPU Memory OOM, the entire program will crash (observed with SDXL on GTX 1060/1050/1066), and there is no dynamic method to prevent or recover from the crash. Users need to enable this cmd flag at their own risk.
 
-CMD flags are on ldm_patches/modules/args_parser.py and on the normal A1111 path (modules/cmd_args.py)
+Some extra flags that can help with performance or save VRAM, or more, depending of your needs. Most of them are found on ldm_patched/modules/args_parser.py and on the normal A1111 path (modules/cmd_args.py):
 
     --disable-xformers
         Disables xformers, to use other attentions like SDP.
@@ -131,8 +110,14 @@ CMD flags are on ldm_patches/modules/args_parser.py and on the normal A1111 path
         Use the new pytorch 2.0 cross attention function.
     --disable-attention-upcast
         Disable all upcasting of attention. Should be unnecessary except for debugging.
+    --force-channels-last
+        Force channels last format when inferencing the models.
+    --disable-cuda-malloc
+        Disable cudaMallocAsync.
     --gpu-device-id
         Set the id of the cuda device this instance will use.
+    --force-upcast-attention
+        Force enable attention upcasting.
 
 (VRAM related)
 

@@ -372,7 +372,7 @@ class UiPromptStyles:
 
         self.delete.click(
             fn=delete_style,
-            _js='function(name){ if(name == "") return ""; return confirm("Delete style " + name + "?") ? name : ""; }',
+            js='function(name){ if(name == "") return ""; return confirm("Delete style " + name + "?") ? name : ""; }',
             inputs=[self.selection],
             outputs=[self.selection, self.prompt, self.neg_prompt],
             show_progress=False,
@@ -401,4 +401,4 @@ class UiPromptStyles:
             inputs=[self.main_ui_prompt, self.main_ui_negative_prompt, self.dropdown],
             outputs=[self.main_ui_prompt, self.main_ui_negative_prompt, self.dropdown],
             show_progress=False,
-        ).then(fn=None, _js="function(){update_"+self.tabname+"_tokens(); closePopup();}", show_progress=False)
+        ).then(fn=None, js="function(){update_"+self.tabname+"_tokens(); closePopup();}", show_progress=False)

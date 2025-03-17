@@ -384,6 +384,8 @@ options_templates.update(options_section(('ui_prompt_editing', "Prompt editing",
     "include_styles_into_token_counters": OptionInfo(True, "Count tokens of enabled styles").info("When calculating how many tokens the prompt has, also consider tokens added by enabled styles."),
     "add_styles_to_prompt": OptionInfo(True, "Add selected styles to prompt on generation"),
     "auto_sort_styles_on_restart": OptionInfo(False, "Automatically sort styles by name upon restarting server"),
+    "base_prompt_styles_vars": OptionInfo(False, "Use Base prompt UI for base prompt option from the style_vars extension"),
+    "open_to_selected_style": OptionInfo(False, "'Edit Styles' button will open to the first selected style in the dropdown"),
 }))
 
 options_templates.update(options_section(('ui_gallery', "Gallery", "ui"), {

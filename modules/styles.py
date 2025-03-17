@@ -13,7 +13,7 @@ class PromptStyle(typing.NamedTuple):
     prompt: str | None
     negative_prompt: str | None
     path: str | None = None
-
+    group: str | None = None
 
 def merge_prompts(style_prompt: str, prompt: str) -> str:
     if "{prompt}" in style_prompt:
@@ -84,6 +84,7 @@ class StyleDatabase:
     def __init__(self, paths: list[str | Path]):
         self.no_style = PromptStyle("None", "", "", None)
         self.styles = {}
+        self.groups: list[str] = ["All", "Characters", "Styles", "Other"]
         self.paths = paths
         self.all_styles_files: list[Path] = []
 
@@ -143,9 +144,10 @@ class StyleDatabase:
                     # Support loading old CSV format with "name, text"-columns
                     prompt = row["prompt"] if "prompt" in row else row["text"]
                     negative_prompt = row.get("negative_prompt", "")
+                    group = row["group"] if "group" in row else row["text"]
                     # Add style to database
                     unsorted.append(PromptStyle(
-                        row["name"], prompt, negative_prompt, str(path)
+                        row["name"], prompt, negative_prompt, str(path), group
                     ))
                 
                 styleList = unsorted
